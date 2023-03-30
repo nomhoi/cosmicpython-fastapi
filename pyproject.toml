@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "cosmicpython-fastapi"
+version = "0.1.0"
+description = ""
+authors = ["nomhoi"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pytest = "^7.2.2"
+fastapi = "^0.93.0"
+asyncpg = "^0.27.0"
+aiosqlite = "^0.18.0"
+uvicorn = "^0.21.1"
+SQLAlchemy = {extras = ["asyncio"], version = "^2.0.6"}
+pytest-asyncio = "^0.21.0"
+requests = "^2.28.2"
+psycopg2 = "^2.9.5"
+
+[tool.poetry.dev-dependencies]
+isort = "*"
+pre-commit = "*"
+toml = "^0.10.2"
+black = "^23.1.0"
+ruff = "^0.0.259"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
