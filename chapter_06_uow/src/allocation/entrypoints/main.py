@@ -1,7 +1,7 @@
 from allocation import config
 from allocation.adapters import orm, repository
 from allocation.domain import model
-from allocation.service_layer import services
+from allocation.service_layer import services, unit_of_work
 from fastapi import FastAPI, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -23,16 +23,15 @@ app = FastAPI()
 
 @app.post("/add_batch", status_code=status.HTTP_201_CREATED)
 async def add_batch(batch: schemas.AddBatchRequest):
-    session = get_session()  # TODO
-    repo = repository.SqlAlchemyRepository(session)
+    session = get_session()
+    repository.SqlAlchemyRepository(session)
     eta = batch.eta
     await services.add_batch(
         batch.ref,
         batch.sku,
         batch.qty,
         eta,
-        repo,
-        session,
+        unit_of_work.SqlAlchemyUnitOfWork(),
     )
     return "OK"
 
@@ -40,14 +39,13 @@ async def add_batch(batch: schemas.AddBatchRequest):
 @app.post("/allocate", status_code=status.HTTP_201_CREATED)
 async def allocate_endpoint(line: schemas.OrderLineRequest):
     session = get_session()
-    repo = repository.SqlAlchemyRepository(session)
+    repository.SqlAlchemyRepository(session)
     try:
         batchref = await services.allocate(
             line.orderid,
             line.sku,
             line.qty,
-            repo,
-            session,
+            unit_of_work.SqlAlchemyUnitOfWork(),
         )
     except (model.OutOfStock, services.InvalidSku) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -23,7 +23,6 @@ def random_orderid(name=""):
 
 def post_to_add_batch(ref, sku, qty, eta):
     url = config.get_api_url()
-    print("json:", {"ref": ref, "sku": sku, "qty": qty, "eta": eta})
     r = requests.post(
         f"{url}/add_batch", json={"ref": ref, "sku": sku, "qty": qty, "eta": eta}
     )

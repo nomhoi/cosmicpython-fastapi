@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from allocation.adapters.repository import AbstractRepository
 from allocation.domain import model
+from allocation.service_layer import unit_of_work
 
 
 class InvalidSku(Exception):
@@ -20,20 +20,24 @@ async def add_batch(
     sku: str,
     qty: int,
     eta: Optional[date],
-    repo: AbstractRepository,
-    session,
-) -> None:
-    await repo.add(model.Batch(ref, sku, qty, eta))
-    await session.commit()
+    uow: unit_of_work.AbstractUnitOfWork,
+):
+    async with uow:
+        await uow.batches.add(model.Batch(ref, sku, qty, eta))
+        await uow.commit()
 
 
 async def allocate(
-    orderid: str, sku: str, qty: int, repo: AbstractRepository, session
+    orderid: str,
+    sku: str,
+    qty: int,
+    uow: unit_of_work.AbstractUnitOfWork,
 ) -> str:
     line = model.OrderLine(orderid, sku, qty)
-    batches = await repo.list()
-    if not is_valid_sku(line.sku, batches):
-        raise InvalidSku(f"Invalid sku {line.sku}")
-    batchref = model.allocate(line, batches)
-    await session.commit()
+    async with uow:
+        batches = await uow.batches.list()
+        if not is_valid_sku(line.sku, batches):
+            raise InvalidSku(f"Invalid sku {line.sku}")
+        batchref = model.allocate(line, batches)
+        await uow.commit()
     return batchref
