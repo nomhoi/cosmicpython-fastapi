@@ -39,3 +39,47 @@ make test
 ## Makefile
 
 There are more useful commands in the makefile, have a look and try them out.
+
+## Running a server locally
+
+_(since chapter 06)_
+
+```sh
+poetry shell
+cd <chapter folder>
+export PYTHONPATH=$(pwd)/src
+make postgres
+uvicorn allocation.entrypoints.main:app --reload
+pytest
+```
+
+## Debugging
+
+_(since chapter 06)_
+
+VS Code launch.json:
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: FastAPI",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "allocation.entrypoints.main:app"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${cwd}/chapter_06_uow/src"
+            }
+        }
+    ]
+}
+```
+
+Run a web-server locally.
+
+https://fastapi.tiangolo.com/tutorial/debugging/

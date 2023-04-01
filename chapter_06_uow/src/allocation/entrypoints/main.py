@@ -1,12 +1,12 @@
+import uvicorn
 from allocation import config
 from allocation.adapters import orm, repository
 from allocation.domain import model
+from allocation.entrypoints import schemas
 from allocation.service_layer import services, unit_of_work
 from fastapi import FastAPI, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-
-from . import schemas
 
 orm.start_mappers()
 
@@ -51,3 +51,7 @@ async def allocate_endpoint(line: schemas.OrderLineRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {"batchref": batchref}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
