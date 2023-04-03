@@ -23,7 +23,11 @@ async def add_batch(
     uow: unit_of_work.AbstractUnitOfWork,
 ):
     async with uow:
-        await uow.batches.add(model.Batch(ref, sku, qty, eta))
+        product = await uow.products.get(sku=sku)
+        if product is None:
+            product = model.Product(sku, batches=[])
+            await uow.products.add(product)
+        product.batches.append(model.Batch(ref, sku, qty, eta))
         await uow.commit()
 
 
@@ -35,9 +39,9 @@ async def allocate(
 ) -> str:
     line = model.OrderLine(orderid, sku, qty)
     async with uow:
-        batches = await uow.batches.list()
-        if not is_valid_sku(line.sku, batches):
+        product = await uow.products.get(sku=line.sku)
+        if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
-        batchref = model.allocate(line, batches)
+        batchref = product.allocate(line)
         await uow.commit()
     return batchref

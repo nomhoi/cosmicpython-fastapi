@@ -8,11 +8,11 @@ from sqlalchemy.orm import selectinload
 
 class AbstractRepository(abc.ABC):
     @abc.abstractmethod
-    async def add(self, batch: model.Batch):
+    async def add(self, product: model.Product):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get(self, reference) -> model.Batch:
+    async def get(self, sku: str) -> model.Product:
         raise NotImplementedError
 
 
@@ -20,27 +20,27 @@ class SqlAlchemyRepository(AbstractRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, batch):
-        self.session.add(batch)
+    async def add(self, product: model.Product):
+        self.session.add(product)
 
-    async def get(self, reference):
+    async def get(self, sku: str) -> model.Product:
         return (
             (
                 await self.session.execute(
-                    select(model.Batch)
-                    .options(selectinload(model.Batch.allocations))
-                    .filter_by(reference=reference)
+                    select(model.Product)
+                    .options(selectinload(model.Product.batches))
+                    .filter_by(sku=sku)
                 )
             )
             .scalars()
-            .one()
+            .one_or_none()
         )
 
     async def list(self):
         return (
             (
                 await self.session.execute(
-                    select(model.Batch).options(selectinload(model.Batch.allocations))
+                    select(model.Product).options(selectinload(model.Product.batches))
                 )
             )
             .scalars()

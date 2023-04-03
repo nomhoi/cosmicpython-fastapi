@@ -69,9 +69,18 @@ def postgres_async_engine():
 async def postgres_create(postgres_async_engine):
     async with postgres_async_engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
+    yield
+    async with postgres_async_engine.begin() as conn:
+        await conn.run_sync(metadata.drop_all)
 
 
-@pytest_asyncio.fixture
-async def postgres_session(postgres_async_engine, postgres_create):
-    async with AsyncSession(postgres_async_engine, expire_on_commit=False) as session:
-        yield session
+@pytest.fixture
+def postgres_session_factory(postgres_async_engine, postgres_create):
+    yield sessionmaker(
+        bind=postgres_async_engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+
+@pytest.fixture
+def postgres_session(postgres_session_factory):
+    return postgres_session_factory()

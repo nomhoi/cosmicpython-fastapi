@@ -47,7 +47,7 @@ _(since chapter 06)_
 ```sh
 poetry shell
 cd <chapter folder>
-export PYTHONPATH=$(pwd)/src
+export PYTHONPATH=$(pwd)/src:$(pwd)/tests
 make postgres
 uvicorn allocation.entrypoints.main:app --reload
 pytest
@@ -68,12 +68,13 @@ VS Code launch.json:
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "allocation.entrypoints.main:app"
+                "allocation.entrypoints.main:app",
+                "--reload"
             ],
             "jinja": true,
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${cwd}/chapter_06_uow/src"
+                "PYTHONPATH": "${cwd}/chapter_06_uow/src" // change to current chapter
             }
         }
     ]

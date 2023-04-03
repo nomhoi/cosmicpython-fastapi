@@ -4,22 +4,22 @@ from allocation.service_layer import services, unit_of_work
 
 
 class FakeRepository(repository.AbstractRepository):
-    def __init__(self, batches):
-        self._batches = set(batches)
+    def __init__(self, products):
+        self._products = set(products)
 
-    async def add(self, batch):
-        self._batches.add(batch)
+    async def add(self, products):
+        self._products.add(products)
 
-    async def get(self, reference):
-        return next(b for b in self._batches if b.reference == reference)
+    async def get(self, sku):
+        return next((p for p in self._products if p.sku == sku), None)
 
     async def list(self):
-        return list(self._batches)
+        return list(self._products)
 
 
 class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
     def __init__(self):
-        self.batches = FakeRepository([])
+        self.products = FakeRepository([])
         self.committed = False
 
     async def commit(self):
@@ -30,11 +30,19 @@ class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
 
 
 @pytest.mark.asyncio
-async def test_add_batch():
+async def test_add_batch_for_new_product():
     uow = FakeUnitOfWork()
     await services.add_batch("b1", "CRUNCHY-ARMCHAIR", 100, None, uow)
-    assert await uow.batches.get("b1") is not None
+    assert await uow.products.get("CRUNCHY-ARMCHAIR") is not None
     assert uow.committed
+
+
+@pytest.mark.asyncio
+async def test_add_batch_for_existing_product():
+    uow = FakeUnitOfWork()
+    await services.add_batch("b1", "GARISH-RUG", 100, None, uow)
+    await services.add_batch("b2", "GARISH-RUG", 99, None, uow)
+    assert "b2" in [b.reference for b in (await uow.products.get("GARISH-RUG")).batches]
 
 
 @pytest.mark.asyncio

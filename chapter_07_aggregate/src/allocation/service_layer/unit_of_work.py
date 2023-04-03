@@ -30,6 +30,7 @@ class AbstractUnitOfWork(abc.ABC):
 DEFAULT_SESSION_FACTORY = sessionmaker(
     bind=create_async_engine(
         config.get_postgres_uri(),
+        isolation_level="REPEATABLE READ",
         future=True,
         echo=True,
     ),
@@ -44,7 +45,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     async def __aenter__(self):
         self.session = self.session_factory()  # type: Session
-        self.batches = repository.SqlAlchemyRepository(self.session)
+        self.products = repository.SqlAlchemyRepository(self.session)
         return await super().__aenter__()
 
     async def __aexit__(self, *args):
