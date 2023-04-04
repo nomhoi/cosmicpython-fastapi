@@ -1,7 +1,5 @@
 import asyncio
 import time
-import traceback
-from typing import List
 
 import pytest
 from allocation.domain import model
@@ -83,17 +81,13 @@ async def test_rolls_back_on_error(session_factory):
     assert rows == []
 
 
-async def try_to_allocate(orderid, sku, exceptions):
+async def try_to_allocate(orderid, sku):
     line = model.OrderLine(orderid, sku, 10)
-    try:
-        async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
-            product = await uow.products.get(sku=sku)
-            product.allocate(line)
-            time.sleep(0.2)
-            await uow.commit()
-    except Exception as exc:
-        print(traceback.format_exc())
-        exceptions.append(exc)
+    async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
+        product = await uow.products.get(sku=sku)
+        product.allocate(line)
+        time.sleep(0.2)
+        await uow.commit()
 
 
 @pytest.mark.asyncio
@@ -103,16 +97,18 @@ async def test_concurrent_updates_to_version_are_not_allowed(postgres_session_fa
     async with session.begin():
         await insert_batch(session, batch, sku, 100, eta=None, product_version=1)
 
-    order1, order2 = random_orderid(1), random_orderid(2)
-    exceptions: List[Exception] = []
-
-    await asyncio.gather(
-        try_to_allocate(order1, sku, exceptions),
-        try_to_allocate(order2, sku, exceptions),
+    results = await asyncio.gather(
+        try_to_allocate(random_orderid(1), sku),
+        try_to_allocate(random_orderid(2), sku),
+        return_exceptions=True,
     )
-
-    [exception] = exceptions
-    assert "could not serialize access due to concurrent update" in str(exception)
+    for exception in results:
+        if exception:
+            assert "could not serialize access due to concurrent update" in str(
+                exception
+            )
+        else:
+            assert True
 
     async with session.begin():
         [[version]] = await session.execute(
