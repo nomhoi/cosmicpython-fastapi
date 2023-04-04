@@ -1,7 +1,13 @@
+import asyncio
+import time
+import traceback
+from typing import List
+
 import pytest
 from allocation.domain import model
 from allocation.service_layer import unit_of_work
 from sqlalchemy.sql import text
+from tests.random_refs import random_batchref, random_orderid, random_sku
 
 
 async def insert_batch(session, ref, sku, qty, eta, product_version=1):
@@ -77,52 +83,54 @@ async def test_rolls_back_on_error(session_factory):
     assert rows == []
 
 
-# TODO
-# def try_to_allocate(orderid, sku, exceptions):
-#     line = model.OrderLine(orderid, sku, 10)
-#     try:
-#         with unit_of_work.SqlAlchemyUnitOfWork() as uow:
-#             product = uow.products.get(sku=sku)
-#             product.allocate(line)
-#             time.sleep(0.2)
-#             uow.commit()
-#     except Exception as e:
-#         print(traceback.format_exc())
-#         exceptions.append(e)
+async def try_to_allocate(orderid, sku, exceptions):
+    line = model.OrderLine(orderid, sku, 10)
+    try:
+        async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
+            product = await uow.products.get(sku=sku)
+            product.allocate(line)
+            time.sleep(0.2)
+            await uow.commit()
+    except Exception as exc:
+        print(traceback.format_exc())
+        exceptions.append(exc)
 
 
-# def test_concurrent_updates_to_version_are_not_allowed(postgres_session_factory):
-#     sku, batch = random_sku(), random_batchref()
-#     session = postgres_session_factory()
-#     insert_batch(session, batch, sku, 100, eta=None, product_version=1)
-#     session.commit()
+@pytest.mark.asyncio
+async def test_concurrent_updates_to_version_are_not_allowed(postgres_session_factory):
+    sku, batch = random_sku(), random_batchref()
+    session = postgres_session_factory()
+    async with session.begin():
+        await insert_batch(session, batch, sku, 100, eta=None, product_version=1)
 
-#     order1, order2 = random_orderid(1), random_orderid(2)
-#     exceptions = []  # type: List[Exception]
-#     try_to_allocate_order1 = lambda: try_to_allocate(order1, sku, exceptions)
-#     try_to_allocate_order2 = lambda: try_to_allocate(order2, sku, exceptions)
-#     thread1 = threading.Thread(target=try_to_allocate_order1)
-#     thread2 = threading.Thread(target=try_to_allocate_order2)
-#     thread1.start()
-#     thread2.start()
-#     thread1.join()
-#     thread2.join()
+    order1, order2 = random_orderid(1), random_orderid(2)
+    exceptions: List[Exception] = []
 
-#     [[version]] = session.execute(
-#         "SELECT version_number FROM products WHERE sku=:sku",
-#         dict(sku=sku),
-#     )
-#     assert version == 2
-#     [exception] = exceptions
-#     assert "could not serialize access due to concurrent update" in str(exception)
+    await asyncio.gather(
+        try_to_allocate(order1, sku, exceptions),
+        try_to_allocate(order2, sku, exceptions),
+    )
 
-#     orders = session.execute(
-#         "SELECT orderid FROM allocations"
-#         " JOIN batches ON allocations.batch_id = batches.id"
-#         " JOIN order_lines ON allocations.orderline_id = order_lines.id"
-#         " WHERE order_lines.sku=:sku",
-#         dict(sku=sku),
-#     )
-#     assert orders.rowcount == 1
-#     with unit_of_work.SqlAlchemyUnitOfWork() as uow:
-#         uow.session.execute("select 1")
+    [exception] = exceptions
+    assert "could not serialize access due to concurrent update" in str(exception)
+
+    async with session.begin():
+        [[version]] = await session.execute(
+            text("SELECT version_number FROM products WHERE sku=:sku"),
+            dict(sku=sku),
+        )
+        assert version == 2
+
+        orders = await session.execute(
+            text(
+                "SELECT orderid FROM allocations"
+                " JOIN batches ON allocations.batch_id = batches.id"
+                " JOIN order_lines ON allocations.orderline_id = order_lines.id"
+                " WHERE order_lines.sku=:sku"
+            ),
+            dict(sku=sku),
+        )
+        assert orders.rowcount == 1
+
+    async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
+        await uow.session.execute(text("select 1"))

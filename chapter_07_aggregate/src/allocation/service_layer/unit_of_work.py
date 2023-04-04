@@ -44,7 +44,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.session_factory = session_factory
 
     async def __aenter__(self):
-        self.session = self.session_factory()  # type: Session
+        self.session = self.session_factory()  # type: AsyncSession
         self.products = repository.SqlAlchemyRepository(self.session)
         return await super().__aenter__()
 
