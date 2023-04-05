@@ -44,4 +44,4 @@ async def allocate(
             raise InvalidSku(f"Invalid sku {line.sku}")
         batchref = product.allocate(line)
         await uow.commit()
-    return batchref
+        return batchref

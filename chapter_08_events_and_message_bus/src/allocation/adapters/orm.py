@@ -1,5 +1,5 @@
 from allocation.domain import model
-from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import registry, relationship
 
 mapper_registry = registry()
@@ -58,3 +58,8 @@ def start_mappers():
     mapper_registry.map_imperatively(
         model.Product, products, properties={"batches": relationship(batches_mapper)}
     )
+
+
+@event.listens_for(model.Product, "load")
+def receive_load(product, _):
+    product.events = []

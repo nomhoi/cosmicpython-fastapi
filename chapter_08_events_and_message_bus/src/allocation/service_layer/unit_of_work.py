@@ -8,9 +8,11 @@ from allocation.adapters import repository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from . import messagebus
+
 
 class AbstractUnitOfWork(abc.ABC):
-    batches: repository.AbstractRepository
+    products: repository.AbstractRepository
 
     async def __aenter__(self) -> AbstractUnitOfWork:
         return self
@@ -18,8 +20,18 @@ class AbstractUnitOfWork(abc.ABC):
     async def __aexit__(self, *args):
         await self.rollback()
 
-    @abc.abstractmethod
     async def commit(self):
+        await self._commit()
+        self.publish_events()
+
+    def publish_events(self):
+        for product in self.products.seen:
+            while product.events:
+                event = product.events.pop(0)
+                messagebus.handle(event)
+
+    @abc.abstractmethod
+    async def _commit(self):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -44,7 +56,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.session_factory = session_factory
 
     async def __aenter__(self):
-        self.session = self.session_factory()  # type: AsyncSession
+        self.session: AsyncSession = self.session_factory()
         self.products = repository.SqlAlchemyRepository(self.session)
         return await super().__aenter__()
 
@@ -52,7 +64,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         await super().__aexit__(*args)
         await self.session.close()
 
-    async def commit(self):
+    async def _commit(self):
         await self.session.commit()
 
     async def rollback(self):
