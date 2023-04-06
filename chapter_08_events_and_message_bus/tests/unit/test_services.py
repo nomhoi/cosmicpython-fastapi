@@ -1,8 +1,9 @@
-from unittest import mock
+import asyncio
 
 import pytest
 from allocation.adapters import repository
 from allocation.service_layer import services, unit_of_work
+from asynctest import mock
 
 
 class FakeRepository(repository.AbstractRepository):
@@ -80,6 +81,7 @@ async def test_sends_email_on_out_of_stock_error():
 
     with mock.patch("allocation.adapters.email.send_mail") as mock_send_mail:
         await services.allocate("o1", "POPULAR-CURTAINS", 10, uow)
+        await asyncio.sleep(0.2)
         assert mock_send_mail.call_args == mock.call(
             "stock@made.com",
             "Out of stock for POPULAR-CURTAINS",

@@ -22,13 +22,15 @@ class AbstractUnitOfWork(abc.ABC):
 
     async def commit(self):
         await self._commit()
-        self.publish_events()
+        await self.publish_events()
 
-    def publish_events(self):
+    async def publish_events(self):
+        events = []
         for product in self.products.seen:
             while product.events:
                 event = product.events.pop(0)
-                messagebus.handle(event)
+                events.append(event)
+        await messagebus.handle_events(events)
 
     @abc.abstractmethod
     async def _commit(self):

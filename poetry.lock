@@ -44,6 +44,14 @@ docs = ["Sphinx (>=4.1.2,<4.2.0)", "sphinxcontrib-asyncio (>=0.3.0,<0.4.0)", "sp
 test = ["flake8 (>=5.0.4,<5.1.0)", "uvloop (>=0.15.3)"]
 
 [[package]]
+name = "asynctest"
+version = "0.13.0"
+description = "Enhance the standard unittest package with features for testing asyncio libraries"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
 name = "attrs"
 version = "22.2.0"
 description = "Classes Without Boilerplate"
@@ -336,8 +344,8 @@ pyyaml = ">=5.1"
 virtualenv = ">=20.10.0"
 
 [[package]]
-name = "psycopg2"
-version = "2.9.5"
+name = "psycopg2-binary"
+version = "2.9.6"
 description = "psycopg2 - Python-PostgreSQL Database Adapter"
 category = "main"
 optional = false
@@ -439,7 +447,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "sqlalchemy"
-version = "2.0.7"
+version = "2.0.9"
 description = "Database Abstraction Library"
 category = "main"
 optional = false
@@ -582,12 +590,13 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "flake8 (<5)", "pytest-co
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "021fc0ff58a8a89d07515e1ce54dcd116af2b8bff5f2d648cf7e81f41df2563d"
+content-hash = "d358d2276c7199b5416ab124ee8a931102568b2f23fc0fbe60cfc72a007745f3"
 
 [metadata.files]
 aiosqlite = []
 anyio = []
 asyncpg = []
+asynctest = []
 attrs = []
 black = []
 certifi = []
@@ -622,7 +631,7 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 pre-commit = []
-psycopg2 = []
+psycopg2-binary = []
 pydantic = []
 pytest = []
 pytest-asyncio = []
