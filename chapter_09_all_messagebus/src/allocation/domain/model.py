@@ -28,6 +28,15 @@ class Product:
             self.events.append(events.OutOfStock(line.sku))
             return None
 
+    def change_batch_quantity(self, ref: str, qty: int):
+        batch = next(b for b in self.batches if b.reference == ref)
+        batch.purchased_quantity = qty
+        while batch.available_quantity < 0:
+            line = batch.deallocate_one()
+            self.events.append(
+                events.AllocationRequired(line.orderid, line.sku, line.qty)
+            )
+
 
 # https://github.com/cosmicpython/code/issues/17
 # @dataclass(frozen=True)
@@ -72,9 +81,8 @@ class Batch:
         if self.can_allocate(line):
             self.allocations.add(line)
 
-    def deallocate(self, line: OrderLine):
-        if line in self.allocations:
-            self.allocations.remove(line)
+    def deallocate_one(self) -> OrderLine:
+        return self.allocations.pop()
 
     @property
     def allocated_quantity(self) -> int:

@@ -8,8 +8,6 @@ from allocation.adapters import repository
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from . import messagebus
-
 
 class AbstractUnitOfWork(abc.ABC):
     products: repository.AbstractRepository
@@ -22,13 +20,11 @@ class AbstractUnitOfWork(abc.ABC):
 
     async def commit(self):
         await self._commit()
-        await self.publish_events()
 
-    async def publish_events(self):
+    def collect_new_events(self):
         for product in self.products.seen:
             while product.events:
-                event = product.events.pop(0)
-                await messagebus.handle(event)
+                yield product.events.pop(0)
 
     @abc.abstractmethod
     async def _commit(self):

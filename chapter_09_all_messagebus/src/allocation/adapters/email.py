@@ -1,2 +1,2 @@
-async def send_mail(*args):
+async def send(*args):
     print("SENDING EMAIL:", *args)

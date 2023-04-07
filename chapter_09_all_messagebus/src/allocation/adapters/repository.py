@@ -1,6 +1,7 @@
 import abc
 from typing import Set
 
+from allocation.adapters import orm
 from allocation.domain import model
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,12 +22,22 @@ class AbstractRepository(abc.ABC):
             self.seen.add(product)
         return product
 
+    async def get_by_batchref(self, batchref) -> model.Product:
+        product = await self._get_by_batchref(batchref)
+        if product:
+            self.seen.add(product)
+        return product
+
     @abc.abstractmethod
     async def _add(self, product: model.Product):
         raise NotImplementedError
 
     @abc.abstractmethod
     async def _get(self, sku) -> model.Product:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def _get_by_batchref(self, batchref) -> model.Product:
         raise NotImplementedError
 
 
@@ -51,13 +62,15 @@ class SqlAlchemyRepository(AbstractRepository):
             .one_or_none()
         )
 
-    async def list(self):
+    async def _get_by_batchref(self, batchref):
         return (
             (
                 await self.session.execute(
-                    select(model.Product).options(selectinload(model.Product.batches))
+                    select(model.Product)
+                    .join(model.Batch)
+                    .filter(orm.batches.c.reference == batchref)
                 )
             )
             .scalars()
-            .all()
+            .one_or_none()
         )
