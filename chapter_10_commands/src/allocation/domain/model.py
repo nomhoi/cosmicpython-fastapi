@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional, Set
 
-from . import events
+from . import commands, events
 
 
 class OutOfStock(Exception):
@@ -33,9 +33,7 @@ class Product:
         batch.purchased_quantity = qty
         while batch.available_quantity < 0:
             line = batch.deallocate_one()
-            self.events.append(
-                events.AllocationRequired(line.orderid, line.sku, line.qty)
-            )
+            self.events.append(commands.Allocate(line.orderid, line.sku, line.qty))
 
 
 # https://github.com/cosmicpython/code/issues/17

@@ -1,6 +1,6 @@
 import uvicorn
 from allocation.adapters import orm
-from allocation.domain import events
+from allocation.domain import commands
 from allocation.entrypoints import schemas
 from allocation.service_layer import messagebus, unit_of_work
 from allocation.service_layer.handlers import InvalidSku
@@ -13,13 +13,14 @@ app = FastAPI()
 
 @app.post("/add_batch", status_code=status.HTTP_201_CREATED)
 async def add_batch(batch: schemas.AddBatchRequest):
-    event = events.BatchCreated(
+    cmd = commands.CreateBatch(
         batch.ref,
         batch.sku,
         batch.qty,
         batch.eta,
     )
-    await messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    await messagebus.handle(cmd, uow)
 
     return "OK"
 
@@ -27,12 +28,14 @@ async def add_batch(batch: schemas.AddBatchRequest):
 @app.post("/allocate", status_code=status.HTTP_201_CREATED)
 async def allocate_endpoint(line: schemas.OrderLineRequest):
     try:
-        event = events.AllocationRequired(
+        cmd = commands.Allocate(
             line.orderid,
             line.sku,
             line.qty,
         )
-        results = await messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+        uow = unit_of_work.SqlAlchemyUnitOfWork()
+        results = await messagebus.handle(cmd, uow)
+
         batchref = results.pop(0)
     except InvalidSku as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
