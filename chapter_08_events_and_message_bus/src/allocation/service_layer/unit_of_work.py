@@ -25,12 +25,10 @@ class AbstractUnitOfWork(abc.ABC):
         await self.publish_events()
 
     async def publish_events(self):
-        events = []
         for product in self.products.seen:
             while product.events:
                 event = product.events.pop(0)
-                events.append(event)
-        await messagebus.handle_events(events)
+                await messagebus.handle(event)
 
     @abc.abstractmethod
     async def _commit(self):
