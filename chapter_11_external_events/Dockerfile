@@ -11,4 +11,3 @@ RUN pip install -e /src
 COPY tests/ /tests/
 
 WORKDIR /src
-ENTRYPOINT uvicorn allocation.entrypoints.main:app --reload --host 0.0.0.0 --port 80

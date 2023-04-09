@@ -60,6 +60,12 @@ class TestAddBatch:
         ]
 
 
+@pytest.fixture(autouse=True)
+def fake_redis_publish():
+    with mock.patch("allocation.adapters.redis_eventpublisher.publish"):
+        yield
+
+
 class TestAllocate:
     @pytest.mark.asyncio
     async def test_allocates(self):

@@ -56,7 +56,9 @@ def start_mappers():
         },
     )
     mapper_registry.map_imperatively(
-        model.Product, products, properties={"batches": relationship(batches_mapper)}
+        model.Product,
+        products,
+        properties={"batches": relationship(batches_mapper, lazy="selectin")},
     )
 
 

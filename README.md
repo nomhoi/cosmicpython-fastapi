@@ -74,7 +74,7 @@ VS Code launch.json:
             "jinja": true,
             "justMyCode": true,
             "env": {
-                "PYTHONPATH": "${cwd}/chapter_06_uow/src" // change to current chapter
+                "PYTHONPATH": "${cwd}/chapter_06_uow/src" // change to the selected chapter
             }
         }
     ]

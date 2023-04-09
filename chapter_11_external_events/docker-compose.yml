@@ -1,21 +1,47 @@
 version: "3"
 services:
 
-  app:
+  redis_pubsub:
     build:
       context: .
       dockerfile: Dockerfile
+    image: allocation-image
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_HOST=postgres
+      - DB_PASSWORD=abc123
+      - REDIS_HOST=redis
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      - ./src:/src
+      - ./tests:/tests
+    entrypoint:
+      - python
+      - /src/allocation/entrypoints/redis_eventconsumer.py
+
+  api:
+    image: allocation-image
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
-      - API_HOST=app
+      - API_HOST=api
+      - REDIS_HOST=redis
       - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./src:/src
       - ./tests:/tests
+    entrypoint:
+      - uvicorn
+      - allocation.entrypoints.main:app
+      - --reload
+      - --host=0.0.0.0
+      - --port=80
     ports:
       - "8000:80"
 
@@ -33,3 +59,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "63791:6379"

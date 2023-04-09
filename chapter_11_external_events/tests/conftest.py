@@ -1,11 +1,14 @@
+# pylint: disable=redefined-outer-name
 import asyncio
-import time
+import shutil
+import subprocess
 
+import async_timeout
 import pytest
 import pytest_asyncio
+import redis.asyncio as redis
 from allocation import config
 from allocation.adapters.orm import metadata, start_mappers
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -47,26 +50,27 @@ def session(session_factory):
     return session_factory()
 
 
-def wait_for_postgres_to_come_up(engine):
-    deadline = time.time() + 10
-    while time.time() < deadline:
-        try:
-            return engine.connect()
-        except OperationalError:
-            time.sleep(0.5)
-    pytest.fail("Postgres never came up")
+async def wait_for_postgres_to_come_up(engine):
+    async with async_timeout.timeout(10):
+        return engine.connect()
 
 
-@pytest_asyncio.fixture(scope="session")
+async def wait_for_redis_to_come_up():
+    redis_client = redis.Redis(**config.get_redis_host_and_port())
+    async with async_timeout.timeout(10):
+        return await redis_client.ping()
+
+
+@pytest.fixture(scope="session")
 def postgres_async_engine():
     engine = create_async_engine(config.get_postgres_uri())
-    wait_for_postgres_to_come_up(engine)
     yield engine
     engine.sync_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def postgres_create(postgres_async_engine):
+    await wait_for_postgres_to_come_up(postgres_async_engine)
     async with postgres_async_engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
     yield
@@ -84,3 +88,15 @@ def postgres_session_factory(postgres_async_engine, postgres_create):
 @pytest.fixture
 def postgres_session(postgres_session_factory):
     return postgres_session_factory()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def restart_redis_pubsub():
+    await wait_for_redis_to_come_up()
+    if not shutil.which("docker-compose"):
+        print("skipping restart, assumes running in container")
+        return
+    subprocess.run(
+        ["docker-compose", "restart", "-t", "0", "redis_pubsub"],
+        check=True,
+    )

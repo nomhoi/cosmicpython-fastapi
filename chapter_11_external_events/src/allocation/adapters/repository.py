@@ -5,7 +5,6 @@ from allocation.adapters import orm
 from allocation.domain import model
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 
 class AbstractRepository(abc.ABC):
@@ -51,13 +50,7 @@ class SqlAlchemyRepository(AbstractRepository):
 
     async def _get(self, sku: str) -> model.Product:
         return (
-            (
-                await self.session.execute(
-                    select(model.Product)
-                    .options(selectinload(model.Product.batches))
-                    .filter_by(sku=sku)
-                )
-            )
+            (await self.session.execute(select(model.Product).filter_by(sku=sku)))
             .scalars()
             .one_or_none()
         )
