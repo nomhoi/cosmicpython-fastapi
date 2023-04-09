@@ -32,6 +32,8 @@ async def test_change_batch_quantity_leading_to_reallocation():
         if message:
             messages.append(message)
             print(messages)
-        data = json.loads(messages[-1]["data"])
-        assert data["orderid"] == orderid
-        assert data["batchref"] == later_batch
+
+    assert len(messages) == 1
+    data = json.loads(messages[-1]["data"])
+    assert data["orderid"] == orderid
+    assert data["batchref"] == later_batch
