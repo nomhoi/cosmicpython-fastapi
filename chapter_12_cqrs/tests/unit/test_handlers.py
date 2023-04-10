@@ -73,10 +73,9 @@ class TestAllocate:
         await messagebus.handle(
             commands.CreateBatch("batch1", "COMPLICATED-LAMP", 100, None), uow
         )
-        results = await messagebus.handle(
-            commands.Allocate("o1", "COMPLICATED-LAMP", 10), uow
-        )
-        assert results.pop(0) == "batch1"
+        await messagebus.handle(commands.Allocate("o1", "COMPLICATED-LAMP", 10), uow)
+        [batch] = (await uow.products.get("COMPLICATED-LAMP")).batches
+        assert batch.available_quantity == 90
 
     @pytest.mark.asyncio
     async def test_errors_for_invalid_sku(self):

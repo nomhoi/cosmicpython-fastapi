@@ -1,4 +1,5 @@
 import uvicorn
+from allocation import views
 from allocation.adapters import orm
 from allocation.domain import commands
 from allocation.entrypoints import schemas
@@ -25,7 +26,7 @@ async def add_batch(batch: schemas.AddBatchRequest):
     return "OK"
 
 
-@app.post("/allocate", status_code=status.HTTP_201_CREATED)
+@app.post("/allocate", status_code=status.HTTP_202_ACCEPTED)
 async def allocate_endpoint(line: schemas.OrderLineRequest):
     try:
         cmd = commands.Allocate(
@@ -34,13 +35,20 @@ async def allocate_endpoint(line: schemas.OrderLineRequest):
             line.qty,
         )
         uow = unit_of_work.SqlAlchemyUnitOfWork()
-        results = await messagebus.handle(cmd, uow)
-
-        batchref = results.pop(0)
+        await messagebus.handle(cmd, uow)
     except InvalidSku as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {"batchref": batchref}
+    return "OK"
+
+
+@app.get("/allocations/{orderid}", status_code=status.HTTP_200_OK)
+async def allocations_view_endpoint(orderid):
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    result = await views.allocations(orderid, uow)
+    if not result:
+        raise HTTPException(status_code=404, detail="not found")
+    return result
 
 
 if __name__ == "__main__":

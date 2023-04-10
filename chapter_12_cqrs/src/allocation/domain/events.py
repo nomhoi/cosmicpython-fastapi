@@ -14,5 +14,12 @@ class Allocated(Event):
 
 
 @dataclass
+class Deallocated(Event):
+    orderid: str
+    sku: str
+    qty: int
+
+
+@dataclass
 class OutOfStock(Event):
     sku: str

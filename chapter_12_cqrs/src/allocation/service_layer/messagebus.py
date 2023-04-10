@@ -15,22 +15,16 @@ logger = logging.getLogger(__name__)
 Message = Union[commands.Command, events.Event]
 
 
-async def handle(
-    message: Message,
-    uow: unit_of_work.AbstractUnitOfWork,
-):
-    results = []
+async def handle(message: Message, uow: unit_of_work.AbstractUnitOfWork):
     queue = [message]
     while queue:
         message = queue.pop(0)
         if isinstance(message, events.Event):
             await handle_event(message, queue, uow)
         elif isinstance(message, commands.Command):
-            cmd_result = await handle_command(message, queue, uow)
-            results.append(cmd_result)
+            await handle_command(message, queue, uow)
         else:
             raise Exception(f"{message} was not an Event or Command")
-    return results
 
 
 async def handle_event(
@@ -56,16 +50,22 @@ async def handle_command(
     logger.debug("handling command %s", command)
     try:
         handler = COMMAND_HANDLERS[type(command)]
-        result = await handler(command, uow=uow)
+        await handler(command, uow=uow)
         queue.extend(uow.collect_new_events())
-        return result
     except Exception:
         logger.exception("Exception handling command %s", command)
         raise
 
 
 EVENT_HANDLERS = {
-    events.Allocated: [handlers.publish_allocated_event],
+    events.Allocated: [
+        handlers.publish_allocated_event,
+        handlers.add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        handlers.remove_allocation_from_read_model,
+        handlers.reallocate,
+    ],
     events.OutOfStock: [handlers.send_out_of_stock_notification],
 }  # type: Dict[Type[events.Event], List[Callable]]
 

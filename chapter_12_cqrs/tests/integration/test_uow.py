@@ -38,12 +38,12 @@ async def get_allocated_batch_ref(session, orderid, sku):
 
 
 @pytest.mark.asyncio
-async def test_uow_can_retrieve_a_batch_and_allocate_to_it(session_factory):
-    session = session_factory()
+async def test_uow_can_retrieve_a_batch_and_allocate_to_it(sqlite_session_factory):
+    session = sqlite_session_factory()
     await insert_batch(session, "batch1", "HIPSTER-WORKBENCH", 100, None)
     await session.commit()
 
-    uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
+    uow = unit_of_work.SqlAlchemyUnitOfWork(sqlite_session_factory)
     async with uow:
         product = await uow.products.get(sku="HIPSTER-WORKBENCH")
         line = model.OrderLine("o1", "HIPSTER-WORKBENCH", 10)
@@ -55,28 +55,28 @@ async def test_uow_can_retrieve_a_batch_and_allocate_to_it(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_rolls_back_uncommitted_work_by_default(session_factory):
-    uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
+async def test_rolls_back_uncommitted_work_by_default(sqlite_session_factory):
+    uow = unit_of_work.SqlAlchemyUnitOfWork(sqlite_session_factory)
     async with uow:
         await insert_batch(uow.session, "batch1", "MEDIUM-PLINTH", 100, None)
 
-    new_session = session_factory()
+    new_session = sqlite_session_factory()
     rows = list(await new_session.execute(text('SELECT * FROM "batches"')))
     assert rows == []
 
 
 @pytest.mark.asyncio
-async def test_rolls_back_on_error(session_factory):
+async def test_rolls_back_on_error(sqlite_session_factory):
     class MyException(Exception):
         pass
 
-    uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
+    uow = unit_of_work.SqlAlchemyUnitOfWork(sqlite_session_factory)
     with pytest.raises(MyException):
         async with uow:
             await insert_batch(uow.session, "batch1", "LARGE-FORK", 100, None)
             raise MyException()
 
-    new_session = session_factory()
+    new_session = sqlite_session_factory()
     rows = list(await new_session.execute(text('SELECT * FROM "batches"')))
     assert rows == []
 

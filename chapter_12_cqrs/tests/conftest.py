@@ -12,6 +12,8 @@ from allocation.adapters.orm import metadata, start_mappers
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+pytest.register_assert_rewrite("tests.e2e.api_client")
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -41,13 +43,13 @@ async def create_db(in_memory_db):
 
 
 @pytest.fixture
-def session_factory(in_memory_db, create_db):
+def sqlite_session_factory(in_memory_db, create_db):
     yield sessionmaker(bind=in_memory_db, expire_on_commit=False, class_=AsyncSession)
 
 
 @pytest.fixture
-def session(session_factory):
-    return session_factory()
+def session(sqlite_session_factory):
+    return sqlite_session_factory()
 
 
 async def wait_for_postgres_to_come_up(engine):
