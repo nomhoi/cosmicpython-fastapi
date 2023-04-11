@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable
 
-from allocation.adapters import email, redis_eventpublisher
 from allocation.domain import commands, events, model
 from allocation.domain.model import OrderLine
 from sqlalchemy.sql import text
 
 if TYPE_CHECKING:
+    from allocation.adapters import notifications
+
     from . import unit_of_work
 
 
@@ -47,16 +48,14 @@ async def reallocate(
     event: events.Deallocated,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
-    async with uow:
-        product = await uow.products.get(sku=event.sku)
-        product.events.append(commands.Allocate(**asdict(event)))
-        await uow.commit()
+    await allocate(commands.Allocate(**asdict(event)), uow=uow)
 
 
 async def change_batch_quantity(
     cmd: commands.ChangeBatchQuantity,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
+    print("------------- change_batch_quantity")
     async with uow:
         product = await uow.products.get_by_batchref(batchref=cmd.ref)
         product.change_batch_quantity(ref=cmd.ref, qty=cmd.qty)
@@ -68,9 +67,9 @@ async def change_batch_quantity(
 
 async def send_out_of_stock_notification(
     event: events.OutOfStock,
-    uow: unit_of_work.AbstractUnitOfWork,
+    notifications: notifications.AbstractNotifications,
 ):
-    await email.send(
+    await notifications.send(
         "stock@made.com",
         f"Out of stock for {event.sku}",
     )
@@ -78,9 +77,9 @@ async def send_out_of_stock_notification(
 
 async def publish_allocated_event(
     event: events.Allocated,
-    uow: unit_of_work.AbstractUnitOfWork,
+    publish: Callable[[str, events.Event], Awaitable],
 ):
-    await redis_eventpublisher.publish("line_allocated", event)
+    await publish("line_allocated", event)
 
 
 async def add_allocation_to_read_model(
@@ -115,3 +114,16 @@ async def remove_allocation_from_read_model(
             dict(orderid=event.orderid, sku=event.sku),
         )
         await uow.commit()
+
+
+EVENT_HANDLERS = {
+    events.Allocated: [publish_allocated_event, add_allocation_to_read_model],
+    events.Deallocated: [remove_allocation_from_read_model, reallocate],
+    events.OutOfStock: [send_out_of_stock_notification],
+}  # type: Dict[Type[events.Event], List[Callable]]
+
+COMMAND_HANDLERS = {
+    commands.Allocate: allocate,
+    commands.CreateBatch: add_batch,
+    commands.ChangeBatchQuantity: change_batch_quantity,
+}  # type: Dict[Type[commands.Command], Callable]

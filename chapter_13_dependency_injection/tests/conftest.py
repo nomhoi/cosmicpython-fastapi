@@ -28,23 +28,32 @@ def mapper():
     start_mappers()
 
 
+# @pytest.fixture
+# def mappers():
+#     start_mappers()
+#     yield
+#     clear_mappers()
+
+
 @pytest_asyncio.fixture(scope="session")
-async def in_memory_db():
+async def in_memory_sqlite_db():
     return create_async_engine("sqlite+aiosqlite:///:memory:")
 
 
 @pytest_asyncio.fixture
-async def create_db(in_memory_db):
-    async with in_memory_db.begin() as conn:
+async def create_db(in_memory_sqlite_db):
+    async with in_memory_sqlite_db.begin() as conn:
         await conn.run_sync(metadata.create_all)
     yield
-    async with in_memory_db.begin() as conn:
+    async with in_memory_sqlite_db.begin() as conn:
         await conn.run_sync(metadata.drop_all)
 
 
 @pytest.fixture
-def sqlite_session_factory(in_memory_db, create_db):
-    yield sessionmaker(bind=in_memory_db, expire_on_commit=False, class_=AsyncSession)
+def sqlite_session_factory(in_memory_sqlite_db, create_db):
+    yield sessionmaker(
+        bind=in_memory_sqlite_db, expire_on_commit=False, class_=AsyncSession
+    )
 
 
 @pytest.fixture
@@ -65,7 +74,9 @@ async def wait_for_redis_to_come_up():
 
 @pytest.fixture(scope="session")
 def postgres_async_engine():
-    engine = create_async_engine(config.get_postgres_uri())
+    engine = create_async_engine(
+        config.get_postgres_uri(), isolation_level="SERIALIZABLE"
+    )
     yield engine
     engine.sync_engine.dispose()
 

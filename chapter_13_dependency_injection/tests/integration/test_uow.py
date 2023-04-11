@@ -81,9 +81,9 @@ async def test_rolls_back_on_error(sqlite_session_factory):
     assert rows == []
 
 
-async def try_to_allocate(orderid, sku):
+async def try_to_allocate(orderid, sku, session_factory):
     line = model.OrderLine(orderid, sku, 10)
-    async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
+    async with unit_of_work.SqlAlchemyUnitOfWork(session_factory) as uow:
         product = await uow.products.get(sku=sku)
         product.allocate(line)
         time.sleep(0.2)
@@ -98,8 +98,8 @@ async def test_concurrent_updates_to_version_are_not_allowed(postgres_session_fa
         await insert_batch(session, batch, sku, 100, eta=None, product_version=1)
 
     results = await asyncio.gather(
-        try_to_allocate(random_orderid(1), sku),
-        try_to_allocate(random_orderid(2), sku),
+        try_to_allocate(random_orderid(1), sku, postgres_session_factory),
+        try_to_allocate(random_orderid(2), sku, postgres_session_factory),
         return_exceptions=True,
     )
     for exception in results:
@@ -128,5 +128,5 @@ async def test_concurrent_updates_to_version_are_not_allowed(postgres_session_fa
         )
         assert orders.rowcount == 1
 
-    async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
+    async with unit_of_work.SqlAlchemyUnitOfWork(postgres_session_factory) as uow:
         await uow.session.execute(text("select 1"))

@@ -1,13 +1,11 @@
 import uvicorn
-from allocation import views
-from allocation.adapters import orm
+from allocation import bootstrap, views
 from allocation.domain import commands
 from allocation.entrypoints import schemas
-from allocation.service_layer import messagebus, unit_of_work
 from allocation.service_layer.handlers import InvalidSku
 from fastapi import FastAPI, HTTPException, status
 
-orm.start_mappers()
+bus = bootstrap.bootstrap()
 
 app = FastAPI()
 
@@ -20,8 +18,7 @@ async def add_batch(batch: schemas.AddBatchRequest):
         batch.qty,
         batch.eta,
     )
-    uow = unit_of_work.SqlAlchemyUnitOfWork()
-    await messagebus.handle(cmd, uow)
+    await bus.handle(cmd)
 
     return "OK"
 
@@ -34,8 +31,7 @@ async def allocate_endpoint(line: schemas.OrderLineRequest):
             line.sku,
             line.qty,
         )
-        uow = unit_of_work.SqlAlchemyUnitOfWork()
-        await messagebus.handle(cmd, uow)
+        await bus.handle(cmd)
     except InvalidSku as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -44,8 +40,7 @@ async def allocate_endpoint(line: schemas.OrderLineRequest):
 
 @app.get("/allocations/{orderid}", status_code=status.HTTP_200_OK)
 async def allocations_view_endpoint(orderid):
-    uow = unit_of_work.SqlAlchemyUnitOfWork()
-    result = await views.allocations(orderid, uow)
+    result = await views.allocations(orderid, bus.uow)
     if not result:
         raise HTTPException(status_code=404, detail="not found")
     return result

@@ -2,9 +2,12 @@ import pytest
 from allocation.adapters import repository
 from allocation.domain import model
 
+# pytestmark = pytest.mark.usefixtures("mappers")
+
 
 @pytest.mark.asyncio
-async def test_get_by_batchref(session):
+async def test_get_by_batchref(sqlite_session_factory):
+    session = sqlite_session_factory()
     repo = repository.SqlAlchemyRepository(session)
     b1 = model.Batch(reference="b1", sku="sku1", qty=100, eta=None)
     b2 = model.Batch(reference="b2", sku="sku1", qty=100, eta=None)

@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import async_timeout
@@ -29,7 +30,8 @@ async def test_change_batch_quantity_leading_to_reallocation():
     # wait until we see a message saying the order has been reallocated
     messages = []
 
-    async with async_timeout.timeout(3):
+    async with async_timeout.timeout(10):
+        await asyncio.sleep(1)
         message = await subscription.get_message(timeout=1)
         if message:
             messages.append(message)

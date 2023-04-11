@@ -1,6 +1,11 @@
+import logging
+
 from allocation.domain import model
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import registry, relationship
+
+logger = logging.getLogger(__name__)
+
 
 mapper_registry = registry()
 
@@ -50,6 +55,7 @@ allocations_view = Table(
 
 
 def start_mappers():
+    logger.info("Starting mappers")
     lines_mapper = mapper_registry.map_imperatively(model.OrderLine, order_lines)
     batches_mapper = mapper_registry.map_imperatively(
         model.Batch,
