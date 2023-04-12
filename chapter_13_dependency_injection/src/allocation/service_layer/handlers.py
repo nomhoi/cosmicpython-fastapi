@@ -55,7 +55,6 @@ async def change_batch_quantity(
     cmd: commands.ChangeBatchQuantity,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
-    print("------------- change_batch_quantity")
     async with uow:
         product = await uow.products.get_by_batchref(batchref=cmd.ref)
         product.change_batch_quantity(ref=cmd.ref, qty=cmd.qty)
